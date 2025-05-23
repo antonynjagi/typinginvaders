@@ -20,7 +20,7 @@ let spawnInterval;
 
 // Word list: All letters of the alphabet included
 const wordList = [
-  "apple", "banana", "cat", "dog", "elephant", "frog", "guitar",
+  "apple", "ant", "antelope", "boy", "banana", "cat", "dog", "elephant", "frog", "guitar",
   "happy", "island", "jungle", "kangaroo", "lion", "monkey", "night",
   "orange", "penguin", "queen", "robot", "sun", "tiger", "umbrella",
   "volcano", "water", "xylophone", "yellow", "zebra"
