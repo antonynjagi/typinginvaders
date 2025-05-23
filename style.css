@@ -1,0 +1,38 @@
+body {
+  margin: 0;
+  font-family: 'Comic Sans MS', cursive;
+  background-color: #000;
+  color: white;
+  text-align: center;
+}
+
+.controls {
+  margin-bottom: 10px;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  margin: 0 5px;
+  cursor: pointer;
+}
+
+canvas {
+  /* background-image: url('assets/background.png'); */
+  background-size: cover;
+  display: block;
+  margin: auto;
+  border: 2px solid #fff;
+}
+
+.ui {
+  margin-top: 10px;
+}
+
+.scoreboard {
+  margin: 20px auto;
+  width: 300px;
+  background: #111;
+  padding: 10px;
+  border-radius: 10px;
+}

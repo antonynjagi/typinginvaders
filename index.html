@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🚀 Typing Invaders</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>🚀 Typing Invaders</h1>
+
+  <div class="controls">
+    <button onclick="startGame()">Start</button>
+    <button onclick="pauseGame()">Pause</button>
+    <button onclick="cancelGame()">Cancel</button>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="ui">
+    <p>Score: <span id="score">0</span></p>
+    <p>Lives: <span id="lives">5</span></p>
+    <button onclick="downloadScores()">Download Score Report</button>
+  </div>
+
+  <div class="scoreboard">
+    <h2>🏆 Scoreboard</h2>
+    <ul id="scoreList">
+      <li>No scores yet.</li>
+    </ul>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
