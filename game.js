@@ -7,23 +7,32 @@ canvas.height = 600;
 let score = 0;
 let lives = 5;
 let words = [];
+let usedWords = []; // To avoid duplicates
 let typedWord = "";
 let keysUsed = {};
-let gameOver = true; // Start as game over until Start is clicked
+let correctLetters = 0;
+let totalTypedLetters = 0;
+let gameOver = true;
 let isPaused = false;
 let startTime = null;
 let animationFrameId;
+let spawnInterval;
 
-// Starfield for background
-let starField = [];
+// Word list: All letters of the alphabet included
+const wordList = [
+  "apple", "banana", "cat", "dog", "elephant", "frog", "guitar",
+  "happy", "island", "jungle", "kangaroo", "lion", "monkey", "night",
+  "orange", "penguin", "queen", "robot", "sun", "tiger", "umbrella",
+  "volcano", "water", "xylophone", "yellow", "zebra"
+];
 
 // DOM Elements
 const scoreEl = document.getElementById("score");
 const livesEl = document.getElementById("lives");
 const scoreListEl = document.getElementById("scoreList");
 
-// Word list
-const wordList = ["apple", "banana", "cat", "dog", "sun", "moon", "star", "rocket", "planet"];
+// Starfield for background
+let starField = [];
 
 // Initialize stars
 function initStars(count) {
@@ -82,38 +91,20 @@ document.body.addEventListener("keydown", function (e) {
 });
 
 // Check partial letter match
-/*
-function checkTypedWord() {
-  words.forEach((wordObj) => {
-    wordObj.matchedLetters = 0;
-
-    for (let i = 0; i < typedWord.length; i++) {
-      if (typedWord[i] === wordObj.text[i]) {
-        wordObj.matchedLetters++;
-      } else {
-        break;
-      }
-    }
-  });
-}
-*/
-
 function checkTypedWord() {
   let matchedAny = false;
 
-  // Try to match typedWord with any falling word from the beginning
   for (let i = 0; i < words.length; i++) {
     const wordObj = words[i];
-
     if (wordObj.text.startsWith(typedWord)) {
       matchedAny = true;
 
-      // Matched letters count
       wordObj.matchedLetters = 0;
       for (let j = 0; j < typedWord.length; j++) {
         if (typedWord[j] === wordObj.text[j]) {
           wordObj.matchedLetters++;
         } else {
+          playSound("sound-wrong.mp3"); // Sound on wrong letter
           break;
         }
       }
@@ -122,14 +113,16 @@ function checkTypedWord() {
     }
   }
 
-  // If no match found at all, reset the typedWord
   if (!matchedAny && typedWord !== "") {
+    playSound("sound-wrong.mp3"); // Sound on wrong word start
     typedWord = "";
   }
 }
+
 // Explode a word when typed correctly
 function explodeWord(word) {
   score += 10;
+  correctLetters += word.text.length;
   updateUI();
   playSound("sound-bomb.mp3");
 }
@@ -140,7 +133,6 @@ function updateUI() {
   livesEl.innerText = lives;
 }
 
-// Falling word class
 class FallingWord {
   constructor(text) {
     this.text = text;
@@ -157,9 +149,11 @@ class FallingWord {
 
     for (let i = 0; i < this.text.length; i++) {
       if (i < this.matchedLetters) {
-        ctx.fillStyle = "#0f0"; // Green for matched letters
+        ctx.fillStyle = "#0f0"; // Green for matched
+      } else if (this.matchedLetters > 0) {
+        ctx.fillStyle = "#f90"; // Orange for partially matched
       } else {
-        ctx.fillStyle = "#ff0"; // Yellow for unmatched letters
+        ctx.fillStyle = "#ff0"; // Yellow otherwise
       }
       ctx.fillText(this.text[i], x, this.y);
       x += ctx.measureText(this.text[i]).width;
@@ -172,8 +166,7 @@ class FallingWord {
       lives--;
       updateUI();
       playSound("sound-laser-lost.mp3");
-      words.splice(words.indexOf(this), 1);
-
+      removeWord(this);
       if (lives <= 0) {
         endGame();
       }
@@ -181,8 +174,19 @@ class FallingWord {
 
     if (this.matchedLetters === this.text.length) {
       explodeWord(this);
-      words.splice(words.indexOf(this), 1);
+      removeWord(this);
       typedWord = "";
+    }
+  }
+}
+
+function removeWord(word) {
+  const index = words.indexOf(word);
+  if (index > -1) {
+    words.splice(index, 1);
+    const wordIndex = usedWords.indexOf(word.text);
+    if (wordIndex > -1) {
+      usedWords.splice(wordIndex, 1);
     }
   }
 }
@@ -193,16 +197,20 @@ function endGame() {
   isPaused = false;
   cancelAnimationFrame(animationFrameId);
 
+  const durationSeconds = (Date.now() - startTime) / 1000;
+  const wpm = Math.round((correctLetters / 5) / (durationSeconds / 60));
+
   ctx.fillStyle = "rgba(0,0,0,0.7)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#fff";
   ctx.font = "48px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("Game Over!", canvas.width / 2, canvas.height / 2 - 20);
+  ctx.fillText("Game Over!", canvas.width / 2, canvas.height / 2 - 40);
   ctx.font = "24px Arial";
-  ctx.fillText("Final Score: " + score, canvas.width / 2, canvas.height / 2 + 20);
+  ctx.fillText("Final Score: " + score, canvas.width / 2, canvas.height / 2);
+  ctx.fillText("Words per Minute: " + wpm, canvas.width / 2, canvas.height / 2 + 30);
 
-  saveScore(score);
+  saveScore(score, wpm);
   showScores();
 }
 
@@ -245,10 +253,17 @@ function playSound(src) {
 
 // Download score report
 function downloadScores() {
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  const durationSeconds = (Date.now() - startTime) / 1000;
+  const wpm = Math.round((correctLetters / 5) / (durationSeconds / 60));
+  const accuracy = totalTypedLetters > 0
+    ? ((correctLetters / totalTypedLetters) * 100).toFixed(1)
+    : 0;
+
   let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += "Time Spent (seconds)," + duration + "\n";
+  csvContent += "Time Spent (seconds)," + durationSeconds.toFixed(2) + "\n";
   csvContent += "Total Score," + score + "\n";
+  csvContent += "Words Per Minute (WPM)," + wpm + "\n";
+  csvContent += "Accuracy (%)," + accuracy + "\n";
   csvContent += "Key Usage:\n";
   csvContent += "Key,Count\n";
 
@@ -267,11 +282,15 @@ function downloadScores() {
 
 // Word spawner
 function spawnWord() {
-  if (!gameOver && !isPaused) {
+  if (!gameOver && !isPaused && words.length < 5) {
+    let availableWords = wordList.filter(w => !usedWords.includes(w));
+    if (availableWords.length === 0) usedWords = [];
+
     const word = new FallingWord(
-      wordList[Math.floor(Math.random() * wordList.length)]
+      availableWords[Math.floor(Math.random() * availableWords.length)]
     );
     words.push(word);
+    usedWords.push(word.text);
   }
 }
 
@@ -284,12 +303,13 @@ function startGame() {
   isPaused = false;
   startTime = Date.now();
   animate();
-  setInterval(spawnWord, 1500);
+  spawnInterval = setInterval(spawnWord, 1500);
 }
 
 function pauseGame() {
   isPaused = true;
   cancelAnimationFrame(animationFrameId);
+  clearInterval(spawnInterval);
   showPausedMessage();
 }
 
@@ -297,6 +317,7 @@ function cancelGame() {
   isPaused = false;
   gameOver = true;
   cancelAnimationFrame(animationFrameId);
+  clearInterval(spawnInterval);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#fff";
   ctx.font = "32px Arial";
@@ -310,16 +331,19 @@ function resetGame() {
   score = 0;
   lives = 5;
   words = [];
+  usedWords = [];
   typedWord = "";
   keysUsed = {};
+  correctLetters = 0;
+  totalTypedLetters = 0;
   updateUI();
 }
 
 // Scoreboard logic
-function saveScore(finalScore) {
+function saveScore(finalScore, wpm) {
   let scores = JSON.parse(localStorage.getItem("typingInvadersScores") || "[]");
-  scores.push(finalScore);
-  scores.sort((a, b) => b - a);
+  scores.push({ score: finalScore, wpm: wpm });
+  scores.sort((a, b) => b.score - a.score);
   scores = scores.slice(0, 5); // Top 5 only
   localStorage.setItem("typingInvadersScores", JSON.stringify(scores));
 }
@@ -331,9 +355,9 @@ function showScores() {
   if (scores.length === 0) {
     scoreListEl.innerHTML = "<li>No scores yet.</li>";
   } else {
-    scores.forEach((s) => {
+    scores.forEach((entry) => {
       const li = document.createElement("li");
-      li.textContent = s;
+      li.textContent = `Score: ${entry.score} | WPM: ${entry.wpm}`;
       scoreListEl.appendChild(li);
     });
   }
